@@ -15,6 +15,7 @@ config = {
     "version": "0.1.1",
     "author": "Falk Ziegler",
     "author_email": "falk.ziegler@lab-coding.de",
+    "url": "https://github.com/lab-coding-de/rpi-electronics",
     "maintainer": "Falk Ziegler",
     "license": "MIT",
     "description": (__doc__ or "").split("\n")[0],
