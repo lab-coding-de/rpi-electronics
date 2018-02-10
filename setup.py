@@ -12,12 +12,12 @@ with open(path.join(here, "README.rst")) as fobj:
 
 config = {
     "name": "rpi-electronics",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "author": "Falk Ziegler",
     "author_email": "falk.ziegler@lab-coding.de",
     "maintainer": "Falk Ziegler",
     "license": "MIT",
-    "description": (__doc__ or "").split("\n")[0:2],
+    "description": (__doc__ or "").split("\n")[0],
     "long_description": readme,
     "install_requires": [],
     "packages": find_packages(exclude=[])

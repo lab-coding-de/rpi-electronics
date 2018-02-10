@@ -2,5 +2,4 @@
 rpi-electronics
 ====================================
 
-A collection of python modules and code snippets for interfacing
-electronics with the Raspberry Pi.
+A collection of python modules for interfacing electronics with the Raspberry Pi.
