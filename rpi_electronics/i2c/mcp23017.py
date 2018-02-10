@@ -288,38 +288,3 @@ class LCD20x4:
         """
         self._write(ord(char), True)
 
-
-if __name__ == '__main__':
-
-    import smbus, random
-
-    ADDR = 0x20
-    PINS = [13, 14, 15]
-
-    bus = smbus.SMBus(1)
-    try:
-        mcp23017 = MCP23017(bus, ADDR)
-        while True:
-            mcp23017.setup(PINS, MCP23017.OUT)
-            for n in range(5):
-                for i in range(2 ** len(PINS)):
-                    data = [MCP23017.HIGH if ((i >> n) & 1) else MCP23017.LOW for n in range(len(PINS))]
-                    mcp23017.output(PINS, data)
-                    time.sleep(0.1)
-            lcd20x4 = LCD20x4(bus, ADDR, rs=10, en=8, data=range(8), rw=9)
-            lcd20x4.display_on()
-            lcd20x4.write_line(0, 0, 'Lab-Coding.de')
-            lcd20x4.write_line(1, 0, '-' * 20)
-            lcd20x4.write_line(3, 0, 'dt = ')
-            for i in range(0, 1000):
-                t0 = time.time()
-                lcd20x4.write_line(2, 0, 'Test... {0}'.format(i))
-                dt = time.time() - t0
-                lcd20x4.write_line(3, 5, '{0:.3f}s'.format(dt))
-            lcd20x4.clear_display()
-            lcd20x4.display_off()
-            time.sleep(2)
-
-    finally:
-        bus.close()
-
