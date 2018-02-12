@@ -37,23 +37,23 @@ class MCP23017:
 
 
     def __init__(self, bus, address):
-        self.__bus = smbus.SMBus(bus)
+        self._bus = smbus.SMBus(bus)
         self.address = address
-        self.__register_values = dict()
+        self._register_values = dict()
 
         # Leave ICON.BANK = 0 but set ICON.SEQOP = 1
-        self.__bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR['IOCON'], 1 << 5)
+        self._bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR['IOCON'], 1 << 5)
         # Read all register values
         for key in MCP23017.REG_BASE_ADDR.keys():
-            self.__register_values[key] = self.__bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR[key])
+            self._register_values[key] = self._bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR[key])
 
     def close(self):
-        self.__bus.close()
+        self._bus.close()
 
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         self.close()
 
     def setmode(self, *pargs, **kwargs):
@@ -87,7 +87,7 @@ class MCP23017:
         Helper method to manipulate the instance register values.
         Works for both for a single bit as well as for a list of bits.
         """
-        word = self.__register_values[key]
+        word = self._register_values[key]
 
         if not isinstance(bits, Iterable):
             word = MCP23017.set_bit_in_word(word, bits, values)
@@ -104,20 +104,20 @@ class MCP23017:
                 word = MCP23017.set_bit_in_word(word, bit, value)
 
         # check if we have a the word differs to the previous one
-        high_byte_diff, low_byte_diff = divmod(word ^ self.__register_values[key], 256)
+        high_byte_diff, low_byte_diff = divmod(word ^ self._register_values[key], 256)
 
         if high_byte_diff and low_byte_diff:
             # both bytes changed so send the complete word
-            self.__bus.write_word_data(self.address, MCP23017.REG_BASE_ADDR[key], word)
+            self._bus.write_word_data(self.address, MCP23017.REG_BASE_ADDR[key], word)
         elif high_byte_diff ^ low_byte_diff:
             # only one byte differs so we have to send only this one
             value_msb, value_lsb = divmod(word, 256)
             offset, value = (0, value_lsb) if low_byte_diff else (1, value_msb)
-            self.__bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR[key] + offset, value)
+            self._bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR[key] + offset, value)
         else:
             # no change so we do not need to set the hardware register value
             pass
-        self.__register_values[key] = word
+        self._register_values[key] = word
 
     def setup(self, pins, directions, initial=None, pull_up_down=None):
         """
@@ -148,15 +148,15 @@ class MCP23017:
         """
         Reads the logic level of the pin.
         """
-        self.__register_values['GPIO'] = self.__bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['GPIO'])
-        return MCP23017.HIGH if ((self.__register_values['GPIO'] >> pin)) & 1 else MCP23017.LOW
+        self._register_values['GPIO'] = self._bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['GPIO'])
+        return MCP23017.HIGH if ((self._register_values['GPIO'] >> pin)) & 1 else MCP23017.LOW
 
     def gpio_function(self, pin):
         """
         Returns whether the pin is configured as input or as output.
         """
-        self.__register_values['IODIR'] = self.__bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['IODIR'])
-        return MCP23017.IN if ((self.__register_values['IODIR'] >> pin)) & 1 else MCP23017.OUT
+        self._register_values['IODIR'] = self._bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['IODIR'])
+        return MCP23017.IN if ((self._register_values['IODIR'] >> pin)) & 1 else MCP23017.OUT
 
     def cleanup(self):
         pass

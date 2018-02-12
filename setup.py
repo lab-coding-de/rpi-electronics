@@ -12,7 +12,7 @@ with open(path.join(here, "README.rst")) as fobj:
 
 config = {
     "name": "rpi-electronics",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "author": "Falk Ziegler",
     "author_email": "falk.ziegler@lab-coding.de",
     "url": "https://github.com/lab-coding-de/rpi-electronics",
