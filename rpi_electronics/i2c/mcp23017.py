@@ -1,7 +1,10 @@
 #!/usr/bin/python3
+"""
+Library for Raspberry Pi interfacing with the 16-Bit I/O Expander MCP23017
+from Microchip Technology.
+"""
 
 __all__ = ["MCP23017", "LCD20x4"]
-
 
 import time
 import smbus
@@ -55,6 +58,9 @@ class MCP23017:
 
     def __exit__(self, type_, value, traceback):
         self.close()
+
+    def __str__(self):
+        return '<Device class {0} with address {1}>'.format(self.__class__, self.address)
 
     def setmode(self, *pargs, **kwargs):
         """

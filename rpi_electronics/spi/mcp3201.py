@@ -1,10 +1,15 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/python3
+"""
+Library for Raspberry Pi interfacing with the 12-bit A/D converter
+from Microchip Technology.
+"""
 
-from spidev import SpiDev
+__all__ = ["MCP3201"]
+
 import time
+from spidev import SpiDev
 
-class MCP3201():
+class MCP3201:
     def __init__(self):
         self.bus = SpiDev()
         self.bus.open(0, 0)
@@ -18,6 +23,9 @@ class MCP3201():
 
     def __exit__(self, *args):
         self.close()
+
+    def __str__(self):
+        return '<Device class {0}>'.format(self.__class__)
 
     @property
     def average(self):
