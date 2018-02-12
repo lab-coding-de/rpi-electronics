@@ -1,7 +1,10 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/python3
 
+__all__ = ["MCP23017", "LCD20x4"]
+
+
 import time
+import smbus
 from collections import Iterable
 
 class MCP23017:
@@ -34,26 +37,35 @@ class MCP23017:
 
 
     def __init__(self, bus, address):
-        self.bus = bus
+        self.__bus = smbus.SMBus(bus)
         self.address = address
-        self._register_values = dict()
+        self.__register_values = dict()
 
         # Leave ICON.BANK = 0 but set ICON.SEQOP = 1
-        self.bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR['IOCON'], 1 << 5)
+        self.__bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR['IOCON'], 1 << 5)
         # Read all register values
         for key in MCP23017.REG_BASE_ADDR.keys():
-            self._register_values[key] = self.bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR[key])
+            self.__register_values[key] = self.__bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR[key])
+
+    def close(self):
+        self.__bus.close()
 
     def __enter__(self):
         return self
 
-    def __exit__(self, *pargs, **kwargs):
-        pass
+    def __exit__(self, type, value, traceback):
+        self.close()
 
     def setmode(self, *pargs, **kwargs):
+        """
+        Method for compatibility with RPi.GPIO interface only.
+        """
         pass
 
     def setwarnings(self, value):
+        """
+        Method for compatibility with RPi.GPIO interface only.
+        """
         pass
 
     @staticmethod
@@ -75,7 +87,7 @@ class MCP23017:
         Helper method to manipulate the instance register values.
         Works for both for a single bit as well as for a list of bits.
         """
-        word = self._register_values[key]
+        word = self.__register_values[key]
 
         if not isinstance(bits, Iterable):
             word = MCP23017.set_bit_in_word(word, bits, values)
@@ -92,20 +104,20 @@ class MCP23017:
                 word = MCP23017.set_bit_in_word(word, bit, value)
 
         # check if we have a the word differs to the previous one
-        high_byte_diff, low_byte_diff = divmod(word ^ self._register_values[key], 256)
+        high_byte_diff, low_byte_diff = divmod(word ^ self.__register_values[key], 256)
 
         if high_byte_diff and low_byte_diff:
             # both bytes changed so send the complete word
-            self.bus.write_word_data(self.address, MCP23017.REG_BASE_ADDR[key], word)
+            self.__bus.write_word_data(self.address, MCP23017.REG_BASE_ADDR[key], word)
         elif high_byte_diff ^ low_byte_diff:
             # only one byte differs so we have to send only this one
             value_msb, value_lsb = divmod(word, 256)
             offset, value = (0, value_lsb) if low_byte_diff else (1, value_msb)
-            self.bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR[key] + offset, value)
+            self.__bus.write_byte_data(self.address, MCP23017.REG_BASE_ADDR[key] + offset, value)
         else:
             # no change so we do not need to set the hardware register value
             pass
-        self._register_values[key] = word
+        self.__register_values[key] = word
 
     def setup(self, pins, directions, initial=None, pull_up_down=None):
         """
@@ -136,15 +148,15 @@ class MCP23017:
         """
         Reads the logic level of the pin.
         """
-        self._register_values['GPIO'] = self.bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['GPIO'])
-        return MCP23017.HIGH if ((self._register_values['GPIO'] >> pin)) & 1 else MCP23017.LOW
+        self.__register_values['GPIO'] = self.__bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['GPIO'])
+        return MCP23017.HIGH if ((self.__register_values['GPIO'] >> pin)) & 1 else MCP23017.LOW
 
     def gpio_function(self, pin):
         """
         Returns whether the pin is configured as input or as output.
         """
-        self._register_values['IODIR'] = self.bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['IODIR'])
-        return MCP23017.IN if ((self._register_values['IODIR'] >> pin)) & 1 else MCP23017.OUT
+        self.__register_values['IODIR'] = self.__bus.read_word_data(self.address, MCP23017.REG_BASE_ADDR['IODIR'])
+        return MCP23017.IN if ((self.__register_values['IODIR'] >> pin)) & 1 else MCP23017.OUT
 
     def cleanup(self):
         pass
@@ -180,8 +192,9 @@ class LCD20x4:
 
     CMD_SET_DDRAM_ADDRESS = 0x80
 
-    def __init__(self, bus, address, rs, en, data, rw=None):
+    def __init__(self, interface, rs, en, data, rw=None):
         self._pins = {}
+        self._interface = interface
         self._pins['RS'] = rs
         self._pins['E'] = en
         self._bit_mode = len(data)
@@ -190,16 +203,14 @@ class LCD20x4:
         self._pins['DATA']= data
         self._pins['RW'] = rw
 
-        # Initialize the GPIO expander
-        self.mcp23017 = MCP23017(bus, address)
         # Setup all pins as outputs
         for pin in (rs, en, *data):
-            self.mcp23017.setup(pin, MCP23017.OUT)
-            self.mcp23017.output(pin, MCP23017.LOW)
+            self._interface.setup(pin, MCP23017.OUT)
+            self._interface.output(pin, MCP23017.LOW)
         if rw is not None:
-            self.mcp23017.setup(rw, MCP23017.OUT)
+            self._interface.setup(rw, MCP23017.OUT)
             # for now we use the pin only for write actions!
-            self.mcp23017.output(rw, MCP23017.LOW)
+            self._interface.output(rw, MCP23017.LOW)
 
         function_set = LCD20x4.CMD_FUNCTION_SET |\
                                    (LCD20x4.FOUR_BIT_MODE if self._bit_mode == 4 else LCD20x4.EIGHT_BIT_MODE) |\
@@ -225,13 +236,13 @@ class LCD20x4:
         self.close()
 
     def close(self):
-        self.mcp23017.cleanup()
+        self._interface.cleanup()
 
     def _write(self, data, char_mode=False, delay_ms=0):
         """
         Writes the 8-bit value either in character or in command mode.
         """
-        self.mcp23017.output([self._pins['RS'], self._pins['E']], [char_mode, MCP23017.LOW])
+        self._interface.output([self._pins['RS'], self._pins['E']], [char_mode, MCP23017.LOW])
         data = divmod(data, 16) if self._bit_mode == 4 else (data,)
         for number in data:
             output = []
@@ -239,9 +250,9 @@ class LCD20x4:
             while i < self._bit_mode:
                 output.append(MCP23017.HIGH if ((number >> i) & 1) else MCP23017.LOW)
                 i += 1
-            self.mcp23017.output(self._pins['DATA'], output)
-            self.mcp23017.output(self._pins['E'], MCP23017.HIGH)
-            self.mcp23017.output(self._pins['E'], MCP23017.LOW)
+            self._interface.output(self._pins['DATA'], output)
+            self._interface.output(self._pins['E'], MCP23017.HIGH)
+            self._interface.output(self._pins['E'], MCP23017.LOW)
             if delay_ms > 0: time.sleep(delay_ms / 1000.0)
 
 
