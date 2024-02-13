@@ -8,7 +8,7 @@ __all__ = ["E24xx08x"]
 
 import time
 import smbus
-from collections import Iterable
+from collections.abc import Iterable
 
 class E24xx08x:
     """

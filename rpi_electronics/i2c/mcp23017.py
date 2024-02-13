@@ -8,7 +8,7 @@ __all__ = ["MCP23017", "LCD20x4"]
 
 import time
 import smbus
-from collections import Iterable
+from collections.abc import Iterable
 
 class MCP23017:
     """
